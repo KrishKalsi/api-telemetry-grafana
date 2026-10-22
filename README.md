@@ -45,15 +45,87 @@ flowchart LR
 - **Prometheus**: scrapes and stores the metrics
 - **Grafana**: dashboards
 - **Docker Compose**: runs everything with one command
-- **GitHub Actions**: CI that runs tests and checks configs on every push and PR
 
 ## Setup and run
 
-_Coming soon._
+### Requirements
 
-## Screenshots
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose)
+- [Git](https://git-scm.com/)
+- Python 3.10+ (only for the traffic script and tests)
 
-_Coming soon._
+### Run it
+
+```bash
+git clone https://github.com/KrishKalsi/api-telemetry-grafana.git
+cd api-telemetry-grafana
+
+# create your local settings file (never committed)
+cp .env.example .env          # Windows: copy .env.example .env
+
+docker compose up -d --build
+```
+
+| Service | URL | Notes |
+|---|---|---|
+| Weather API | http://localhost:8000/weather?city=delhi | try `/cities`, `/metrics`, `/docs` |
+| Prometheus | http://localhost:9090 | **Status → Targets** shows `weather-api` as UP. **Alerts** shows our 3 alert rules |
+| Grafana | http://localhost:3000 | log in with the user and password from `.env`, then open **Weather API Telemetry** |
+
+### Generate traffic for the dashboard
+
+```bash
+python scripts/traffic.py --rps 3 --duration 180 --error-share 0.2
+```
+
+This only calls **our own API**. Thanks to the cache, Open-Meteo is called at most once per city every 10 minutes, so we respect its rate limits and never load test the public API.
+
+### Run the tests
+
+```bash
+cd app
+pip install -r requirements-dev.txt
+python -m pytest -v
+```
+
+### Alerts
+
+`prometheus/alerts.yml` defines 3 rules, visible at http://localhost:9090/alerts:
+
+| Alert | Fires when |
+|---|---|
+| `WeatherApiDown` | Prometheus can't scrape the API for 30 s |
+| `HighErrorRate` | more than 5% of requests return 5xx for 1 min |
+| `HighLatencyP95` | p95 latency is above 1 s for 2 min |
+
+To see one fire, run `docker compose stop api`, wait about 40 s, check the Alerts page, then run `docker compose start api`.
+
+### Stop
+
+```bash
+docker compose down        # stop
+docker compose down -v     # stop and delete stored Prometheus/Grafana data
+```
+
+### Project structure
+
+```
+.
+├── app/                     # Weather API (FastAPI)
+│   ├── main.py              # routes, cache, Prometheus metrics
+│   ├── tests/test_main.py   # unit tests (Open-Meteo is faked)
+│   ├── Dockerfile
+│   └── requirements.txt
+├── prometheus/
+│   ├── prometheus.yml       # what to scrape and how often
+│   └── alerts.yml           # alert rules
+├── grafana/
+│   ├── provisioning/                    # auto-adds Prometheus datasource + dashboard loader
+│   └── dashboards/api-telemetry.json    # the dashboard
+├── scripts/traffic.py       # demo traffic generator
+├── docker-compose.yml
+└── .env.example             # copy to .env (ignored by git)
+```
 
 ## Research questions
 
