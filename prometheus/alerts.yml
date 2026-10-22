@@ -1,0 +1,39 @@
+# Alert rules: Prometheus checks these conditions every evaluation_interval (5s).
+# A rule must stay true for the whole "for:" time before it fires (avoids alerts on short blips).
+# See them at http://localhost:9090/alerts  (inactive = green, pending = yellow, firing = red)
+groups:
+  - name: weather-api
+    rules:
+      # The API stopped answering Prometheus's scrapes (container crashed / stopped)
+      - alert: WeatherApiDown
+        expr: up{job="weather-api"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Weather API is down"
+          description: "Prometheus could not scrape the weather API for 30 seconds."
+
+      # More than 5% of requests failed on the server side (5xx) over the last minute
+      - alert: HighErrorRate
+        expr: |
+          100 * sum(rate(http_requests_total{job="weather-api",status=~"5.."}[1m]))
+              / sum(rate(http_requests_total{job="weather-api"}[1m])) > 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate"
+          description: "{{ $value | printf \"%.1f\" }}% of requests are failing (threshold 5%)."
+
+      # The slowest 5% of requests take longer than 1 second
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_request_duration_seconds_bucket{job="weather-api"}[1m]))) > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 latency above 1s"
+          description: "p95 latency is {{ $value | printf \"%.2f\" }}s (threshold 1s)."

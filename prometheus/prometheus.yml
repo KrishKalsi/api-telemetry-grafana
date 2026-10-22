@@ -1,7 +1,11 @@
 # Prometheus configuration: WHAT to scrape and HOW OFTEN.
 global:
   scrape_interval: 5s       # visit every target every 5 seconds (short, so the demo feels live)
-  evaluation_interval: 5s
+  evaluation_interval: 5s  # how often alert rules are checked
+
+# Alert rules (see alerts.yml). Path is relative to this file.
+rule_files:
+  - alerts.yml
 
 scrape_configs:
   # Our weather API. "api" is the service name in docker-compose.yml;
