@@ -8,7 +8,7 @@ A small weather API (using [Open-Meteo](https://open-meteo.com/)) that exposes m
 |---|---|---|---|
 | Krish Kalsi | [@KrishKalsi](https://github.com/KrishKalsi) | Telemetry and alerting | Repo setup, Prometheus metrics instrumentation, Dockerfile, alert rules, traffic generator, architecture |
 | Jaival Katira | [@JaivalKatira](https://github.com/JaivalKatira) | Backend developer | Weather API, Open-Meteo integration, caching, unit tests |
-|  |  | DevOps / infrastructure | Docker Compose, Prometheus scraping configuration |
+| Maahir Sangani | [@maahir19](https://github.com/maahir19) | DevOps / infrastructure | Docker Compose, Prometheus scraping configuration |
 |  |  | Observability / dashboards | Grafana setup and provisioning, telemetry dashboard |
 
 ## Architecture
@@ -69,7 +69,18 @@ _Coming soon._
 
 ### 2. How does Prometheus scrape data?
 
-_TODO (DevOps): answer in your own words._
+Prometheus visits the API on a timer and reads the numbers. This visit is called a **scrape**.
+
+1. In `prometheus/prometheus.yml` we list **targets**, here `api:8000`, and how often to visit them (`scrape_interval: 5s`).
+2. Every 5 seconds Prometheus sends `GET http://api:8000/metrics`.
+3. The API answers with plain text, one line per value, for example:
+   `http_requests_total{method="GET",path="/weather",status="200"} 152.0`
+4. Prometheus saves each value with a **timestamp** in its time-series database. Over time this builds a history we can graph.
+5. It also records whether the scrape worked, in a metric called `up` (1 = OK, 0 = failed). You can see this on the Prometheus **Status → Targets** page.
+
+`api` works as a hostname because Docker Compose puts all our containers on the same network and gives each one a DNS name equal to its service name.
+
+**Why pull?** Prometheus decides the pace, so a busy app can't flood it. If a target stops answering, Prometheus notices straight away because `up` becomes 0. Apps also don't need to know where Prometheus is.
 
 ### 3. What do latency percentiles and error rate show?
 
