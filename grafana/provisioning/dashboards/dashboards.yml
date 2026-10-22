@@ -1,0 +1,12 @@
+# Tells Grafana to load every dashboard JSON file found in /var/lib/grafana/dashboards
+# (docker-compose.yml mounts our grafana/dashboards folder there).
+apiVersion: 1
+
+providers:
+  - name: "API Telemetry"
+    folder: "API Telemetry"
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

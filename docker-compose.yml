@@ -1,6 +1,7 @@
 # Starts the whole system with one command:  docker compose up -d --build
 #   API        -> http://localhost:8000
 #   Prometheus -> http://localhost:9090
+#   Grafana    -> http://localhost:3000
 services:
   api:
     build: ./app                      # build the image from app/Dockerfile
@@ -26,5 +27,24 @@ services:
       - api
     restart: unless-stopped
 
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: grafana
+    environment:
+      # Login comes from your .env file (never commit .env!). Defaults: admin / admin
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/api-telemetry.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro   # datasource + dashboard loader
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro   # our dashboard JSON
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
   prometheus-data:
+  grafana-data:
