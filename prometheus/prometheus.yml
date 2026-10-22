@@ -1,0 +1,17 @@
+# Prometheus configuration: WHAT to scrape and HOW OFTEN.
+global:
+  scrape_interval: 5s       # visit every target every 5 seconds (short, so the demo feels live)
+  evaluation_interval: 5s
+
+scrape_configs:
+  # Our weather API. "api" is the service name in docker-compose.yml;
+  # Docker Compose's internal DNS turns it into the container's address.
+  - job_name: "weather-api"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+
+  # Prometheus can also scrape itself (useful to check it is working).
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
