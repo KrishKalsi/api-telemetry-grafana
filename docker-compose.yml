@@ -1,0 +1,30 @@
+# Starts the whole system with one command:  docker compose up -d --build
+#   API        -> http://localhost:8000
+#   Prometheus -> http://localhost:9090
+services:
+  api:
+    build: ./app                      # build the image from app/Dockerfile
+    container_name: weather-api
+    ports:
+      - "8000:8000"                   # host port : container port
+    environment:
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-600}
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus   # keep collected data when containers restart
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
