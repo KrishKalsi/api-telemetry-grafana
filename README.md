@@ -9,7 +9,7 @@ A small weather API (using [Open-Meteo](https://open-meteo.com/)) that exposes m
 | Krish Kalsi | [@KrishKalsi](https://github.com/KrishKalsi) | Telemetry and alerting | Repo setup, Prometheus metrics instrumentation, Dockerfile, alert rules, traffic generator, architecture |
 | Jaival Katira | [@JaivalKatira](https://github.com/JaivalKatira) | Backend developer | Weather API, Open-Meteo integration, caching, unit tests |
 | Maahir Sangani | [@maahir19](https://github.com/maahir19) | DevOps / infrastructure | Docker Compose, Prometheus scraping configuration |
-|  |  | Observability / dashboards | Grafana setup and provisioning, telemetry dashboard |
+| Amreen Peerbhai | [@amreen-08](https://github.com/amreen-08) | Observability / dashboards | Grafana setup and provisioning, telemetry dashboard |
 
 ## Architecture
 
@@ -84,7 +84,25 @@ Prometheus visits the API on a timer and reads the numbers. This visit is called
 
 ### 3. What do latency percentiles and error rate show?
 
-_TODO (Observability): answer in your own words._
+**Latency** is how long a request takes. We use **percentiles** instead of the average, because an average hides slow requests.
+
+- **p50 (median):** half of the requests were faster than this. It shows the *typical* experience.
+- **p95:** 95% of requests were faster, so only the slowest 5% took longer. It shows what *unhappy users* feel.
+- **p99:** the slowest 1%. It shows the worst cases.
+
+Example: if 95 requests take 10 ms and 5 take 2 s, the **average** is about 110 ms, which looks fine. The **p95** is about 2 s, which shows the real problem. In our dashboard, cache hits are very fast, so **p50 is a few milliseconds**. Cache misses have to wait for Open-Meteo, which pushes **p95/p99 up to a few hundred milliseconds**.
+
+Prometheus calculates percentiles from a **histogram**. Each request is counted in a bucket (≤ 5 ms, ≤ 10 ms, ≤ 25 ms, …), and `histogram_quantile(0.95, …)` estimates p95 from those buckets.
+
+**Error rate** is the share of requests that failed:
+
+`error rate = failed requests per second ÷ all requests per second × 100%`
+
+We show two kinds separately:
+- **4xx** = the *client* asked for something wrong (e.g. an unknown city, which returns 404).
+- **5xx** = *our side* failed (e.g. Open-Meteo was down, so we return 502).
+
+A rising 5xx rate means something is broken and needs fixing. A rising p95 means users are waiting too long. Together with request rate, these are the main signals for whether a service is healthy.
 
 ## Credits
 
